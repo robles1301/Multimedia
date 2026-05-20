@@ -1,0 +1,15 @@
+# Ignorar el entorno virtual
+/venv
+
+# Ignorar los Zone Identifier
+*:*Zone.Identifier
+
+# Ignorar los modelos .h5 y las imágenes .png
+*.h5
+*.png
+
+# Ignorar los csv de test
+*.csv
+
+# Ignorar los checkpoints de los cuadernos Jupyter
+*.ipynb_checkpoints
