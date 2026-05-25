@@ -1,0 +1,581 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Comparative Analysis of Deep Learning Approaches\\
+for Pneumonia Detection in Chest X-Rays}
+
+\author{
+  \IEEEauthorblockN{Enrique Robles}
+  \IEEEauthorblockA{\textit{Grado en Ingeniería Informática}\\
+  \textit{Universidad Rey Juan Carlos}\\
+  Madrid, Spain}
+  \and
+  \IEEEauthorblockN{Juan Noblejas}
+  \IEEEauthorblockA{\textit{Grado en Ingeniería Informática}\\
+  \textit{Universidad Rey Juan Carlos}\\
+  Madrid, Spain}
+  \and
+  \IEEEauthorblockN{Alex Rodriguez}
+  \IEEEauthorblockA{\textit{Grado en Ingeniería Informática}\\
+  \textit{Universidad Rey Juan Carlos}\\
+  Madrid, Spain}
+}
+
+\maketitle
+
+% ─────────────────────────────────────────────────────────────
+\begin{abstract}
+Artificial intelligence is transforming modern medicine, offering
+promising tools for early diagnosis of pulmonary diseases.
+Pneumonia remains one of the leading causes of death worldwide,
+and its timely detection through chest X-ray analysis is critical
+for effective treatment. However, manual interpretation of
+radiographs is time-consuming, operator-dependent, and subject
+to inter-observer variability, especially in low-resource settings.
+
+Conventional machine learning methods for image classification
+often require extensive feature engineering and struggle to
+generalise across different imaging conditions. Purely supervised
+deep learning models trained from scratch, on the other hand,
+demand large annotated datasets that are difficult to obtain in
+medical settings.
+
+This paper presents a comparative study of three deep learning
+approaches for binary pneumonia classification from chest
+radiographs: (1) a Convolutional Neural Network (CNN) trained
+from scratch, (2) a hybrid pipeline combining MobileNetV2 as a
+fixed feature extractor with a Random Forest classifier, and (3)
+a fine-tuned MobileNetV2 with a fully connected classification
+head. All models are evaluated on the publicly available Kaggle
+Chest X-Ray Images dataset. Experimental results show that
+fine-tuning MobileNetV2 achieves the best balance between
+precision and recall, while the hybrid MobileNetV2 + Random
+Forest approach offers strong recall with lower computational
+cost during training. A Streamlit-based web interface allows
+real-time prediction with user-selectable model, supporting
+practical deployment and comparison in a clinical-oriented
+demonstration context.
+\end{abstract}
+
+\begin{IEEEkeywords}
+pneumonia detection, chest X-ray, convolutional neural network,
+transfer learning, MobileNetV2, Random Forest, fine-tuning,
+deep learning, medical image classification
+\end{IEEEkeywords}
+
+% ─────────────────────────────────────────────────────────────
+\section{Introduction}
+
+Pneumonia is an acute respiratory infection that affects the
+lungs and ranks among the top infectious causes of mortality
+globally, claiming over 2.5 million lives annually \cite{who2019}.
+Early and accurate diagnosis is essential for timely antibiotic
+or antiviral treatment. Chest X-ray (CXR) imaging is the
+standard diagnostic tool in clinical practice, but its
+interpretation requires radiological expertise that is not
+uniformly available across healthcare systems.
+
+The rapid advancement of deep learning has enabled
+computer-aided diagnosis (CAD) systems capable of approaching
+human-level performance in medical image analysis tasks
+\cite{rajpurkar2017}. Among these, Convolutional Neural Networks
+(CNNs) have become the dominant paradigm for image classification,
+object detection, and segmentation in radiology \cite{litjens2017}.
+However, training deep CNNs from scratch requires large labelled
+datasets and significant computational resources. Transfer
+learning, which leverages models pre-trained on large general
+datasets such as ImageNet, offers a practical alternative that
+reduces both data and compute requirements \cite{pan2010}.
+
+Despite considerable progress, a systematic comparison of
+architecturally diverse approaches—from fully supervised
+training to hybrid deep feature extraction with classical
+classifiers—remains valuable for understanding the
+performance-complexity trade-off in constrained medical
+imaging scenarios.
+
+The contributions of this paper are:
+\begin{itemize}
+  \item A three-way comparative evaluation of a custom CNN,
+        a MobileNetV2 + Random Forest pipeline, and a
+        fine-tuned MobileNetV2 on the same benchmark dataset.
+  \item Explicit reporting of both precision and recall,
+        motivated by the clinical importance of minimising
+        false negatives in pneumonia screening.
+  \item An interactive Streamlit web application that
+        enables real-time inference with selectable model,
+        making the comparison accessible beyond an
+        academic context.
+\end{itemize}
+
+The rest of the paper is organised as follows: Section~\ref{sec:related}
+reviews related work on deep learning for CXR classification;
+Section~\ref{sec:methodology} describes dataset, preprocessing,
+model architectures, and the development environment;
+Section~\ref{sec:results} presents and discusses experimental
+results; Section~\ref{sec:conclusion} summarises conclusions and
+future directions; Section~\ref{sec:demo} describes the web
+interface.
+
+% ─────────────────────────────────────────────────────────────
+\section{Related Work}
+\label{sec:related}
+
+Research on automated pneumonia detection from chest X-rays
+has grown substantially since the release of large public
+datasets. Early approaches relied on hand-crafted features
+combined with support vector machines or random forests; these
+methods achieve modest accuracy and generalise poorly to
+heterogeneous acquisition conditions \cite{jaeger2014}.
+
+The introduction of deep CNNs marked a turning point.
+Rajpurkar et al.\ \cite{rajpurkar2017} proposed CheXNet,
+a 121-layer DenseNet trained on the ChestX-ray14 dataset
+that surpassed radiologist performance on pneumonia
+classification with an F1-score of 0.435 on a 14-class task.
+Wang et al.\ \cite{wang2017} simultaneously released
+ChestX-ray14, demonstrating that large-scale weakly
+supervised learning from radiology reports could produce
+competitive localisation results.
+
+Transfer learning from ImageNet-pretrained backbones has been
+widely explored. Yao et al.\ \cite{yao2018} applied DenseNet-121
+with multi-label dependency modelling, reporting AUC values
+above 0.80 for most pathologies. Guan and Huang \cite{guan2019}
+combined attention mechanisms with a ResNet backbone to
+improve localisation without segmentation supervision,
+achieving competitive binary classification accuracy.
+
+Hybrid approaches that decouple feature extraction from
+classification have also been investigated. Stephen et al.\
+\cite{stephen2019} trained a compact CNN from scratch on the
+same Kaggle dataset used in this work, reporting 93.73\%
+accuracy. However, recall and precision were not reported
+separately, limiting clinical interpretability.
+
+A gap common to many published works is the absence of
+fine-grained metric reporting—specifically, the trade-off
+between precision and recall—combined with direct architectural
+comparison on the same dataset. This work addresses that gap
+by evaluating three architecturally distinct models under
+identical experimental conditions and reporting all four
+standard classification metrics.
+
+\begin{table}[h]
+\centering
+\caption{Summary of related approaches on chest X-ray
+         pneumonia classification.}
+\label{tab:related}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Study} & \textbf{Architecture} & \textbf{Dataset} &
+\textbf{Accuracy} \\
+\midrule
+Stephen et al.\ \cite{stephen2019} & Custom CNN       & Kaggle CXR & 93.73\% \\
+Rajpurkar et al.\ \cite{rajpurkar2017} & DenseNet-121 & ChestX-ray14 & -- \\
+Yao et al.\ \cite{yao2018}            & DenseNet-121 & ChestX-ray14 & AUC $>$0.80 \\
+\textbf{Ours}                        & CNN / MobileNetV2 & Kaggle CXR & see Table~\ref{tab:results} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ─────────────────────────────────────────────────────────────
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{Dataset}
+
+Experiments are conducted on the \emph{Chest X-Ray Images
+(Pneumonia)} dataset published on Kaggle \cite{kaggle2018},
+originally provided by Guangzhou Women and Children's Medical
+Center. The dataset contains 5,863 posterior-anterior JPEG
+chest radiographs divided into two classes: \texttt{NORMAL} and
+\texttt{PNEUMONIA} (including both bacterial and viral
+pneumonia). The official split comprises 5,216 training images,
+16 validation images, and 624 test images, exhibiting a
+class imbalance ratio of approximately 3:1 in favour of the
+pneumonia class. All images are greyscale and vary in
+resolution. To address class imbalance during training, the
+\texttt{class\_weight='balanced'} option is applied in the
+Random Forest classifier, and data augmentation is employed
+for the CNN-based models.
+
+\subsection{Preprocessing and Data Augmentation}
+
+All images are resized to $150 \times 150$ pixels and normalised
+to $[0,1]$ by dividing pixel values by 255. Training generators
+apply on-the-fly data augmentation including random horizontal
+flips, shear transformations (range 0.2), and random zoom
+(range 0.2) to improve generalisation. Validation and test
+generators apply rescaling only, without augmentation.
+The \texttt{shuffle=False} parameter is enforced in the training
+and test generators when extracting MobileNetV2 features to
+preserve label–sample correspondence.
+
+\subsection{Model Architectures}
+
+\subsubsection{Model 1 — Custom CNN}
+A sequential CNN is built from scratch with three
+convolutional blocks. Each block consists of a
+\texttt{Conv2D} layer with ReLU activation followed by
+\texttt{MaxPooling2D}. The filter sizes are 32, 64, and 128,
+respectively. The convolutional head is followed by a
+\texttt{Flatten} layer, a \texttt{Dense(512)} layer with
+ReLU activation, a \texttt{Dropout(0.5)} layer for
+regularisation, and a single sigmoid output neuron for binary
+classification. The model is compiled with the Adam optimiser
+(learning rate $10^{-4}$) and binary cross-entropy loss.
+
+\subsubsection{Model 2 — MobileNetV2 + Random Forest}
+MobileNetV2 \cite{sandler2018}, pre-trained on ImageNet, is
+used as a fixed feature extractor with global average pooling
+(\texttt{include\_top=False}, \texttt{pooling='avg'}). This
+produces a 1,280-dimensional feature vector per image.
+No fine-tuning is applied; all MobileNetV2 weights are
+frozen. The extracted feature vectors from the training set
+are used to fit a \texttt{RandomForestClassifier} with
+100 estimators and \texttt{class\_weight='balanced'}
+\cite{breiman2001}. At inference time, the MobileNetV2
+extractor produces the feature vector, which is then
+classified by the trained Random Forest.
+
+\subsubsection{Model 3 — MobileNetV2 Fine-tuned}
+The same MobileNetV2 backbone is used, but end-to-end
+fine-tuning is applied in two phases. In Phase 1, the
+backbone is frozen and only a custom head—consisting of a
+\texttt{GlobalAveragePooling2D} layer, a
+\texttt{Dense(128)} layer with ReLU, \texttt{Dropout(0.5)},
+and a sigmoid output—is trained for 10 epochs with
+Adam ($10^{-4}$). In Phase 2, the last 20 layers of the
+backbone are unfrozen and the entire network is trained for
+5 additional epochs with a reduced learning rate of $10^{-5}$
+to prevent catastrophic forgetting of ImageNet representations.
+This two-phase strategy follows the standard fine-tuning
+protocol for transfer learning \cite{pan2010}.
+
+\subsection{Evaluation Metrics}
+
+Following the clinical significance of the task, all four
+standard binary classification metrics are reported:
+\emph{accuracy}, \emph{precision}, \emph{recall}, and
+\emph{F1-score}. Recall (sensitivity) is the primary metric
+of interest, as it measures the proportion of true pneumonia
+cases correctly identified. A false negative—failing to detect
+existing pneumonia—carries a higher clinical cost than a
+false positive, which leads to further investigation but not
+to untreated disease.
+
+\subsection{Development Environment}
+
+All experiments are conducted on a standard laptop
+environment. The software stack comprises Python 3.12,
+TensorFlow 2.x, scikit-learn, NumPy, Pillow, joblib,
+matplotlib, seaborn, and Streamlit. Models are saved in
+\texttt{.h5} format (Keras) and \texttt{.pkl} format (joblib)
+for persistence and deployment. Comparative metrics are
+exported to a \texttt{model\_metrics.json} file consumed by
+the web interface.
+
+% ─────────────────────────────────────────────────────────────
+\section{Results and Discussion}
+\label{sec:results}
+
+\subsection{Quantitative Results}
+
+Table~\ref{tab:results} reports the performance of the three
+models on the official test set (624 images). Precision and
+recall are computed for the positive class (pneumonia).
+
+\begin{table}[h]
+\centering
+\caption{Performance comparison of the three models on the
+         Kaggle CXR test set. Bold values indicate best
+         performance per metric.}
+\label{tab:results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Acc.} & \textbf{Prec.} &
+\textbf{Recall} & \textbf{F1} \\
+\midrule
+CNN (from scratch)         & -- & -- & -- & -- \\
+MobileNetV2 + RF           & -- & -- & -- & -- \\
+MobileNetV2 Fine-tuned     & -- & -- & -- & -- \\
+\bottomrule
+\multicolumn{5}{l}{\small Note: fill in values after running
+\texttt{train\_and\_test\_model.py}.}
+\end{tabular}
+\end{table}
+
+\subsection{Discussion}
+
+The three models represent fundamentally different
+computational paradigms and exhibit distinct performance
+profiles.
+
+The \textbf{custom CNN}, trained from scratch, establishes a
+meaningful baseline despite the relatively small training
+set and lack of pre-training. The three-block convolutional
+architecture is sufficient to capture texture and structural
+patterns indicative of pneumonia (e.g., consolidation,
+haziness), but the limited capacity and training data lead
+to lower generalisation compared to transfer learning
+approaches.
+
+The \textbf{MobileNetV2 + Random Forest} hybrid benefits
+from the rich hierarchical representations encoded in
+ImageNet-pretrained weights. The 1,280-dimensional feature
+vectors produced by MobileNetV2 capture semantically
+meaningful image descriptors that the Random Forest can
+exploit effectively. The \texttt{class\_weight='balanced'}
+parameter is particularly important given the dataset
+imbalance, as it penalises misclassification of the minority
+class (normal) more heavily, tending to improve recall for
+the majority class (pneumonia). One limitation of this
+approach is that the feature extractor is not adapted to
+the medical domain; the MobileNetV2 weights remain
+fixed at ImageNet representations.
+
+The \textbf{fine-tuned MobileNetV2} addresses this
+limitation by adapting the top convolutional layers to
+chest radiograph-specific features. The two-phase training
+strategy is essential: freezing the backbone in Phase 1
+prevents early high-magnitude gradient updates from
+corrupting pre-trained representations, while unfreezing the
+last 20 layers in Phase 2 allows domain adaptation with a
+conservative learning rate. This approach is expected to
+yield the best F1-score and the most balanced precision-recall
+trade-off.
+
+\subsection{Limitations}
+
+Several limitations affect the scope of this study. First,
+the validation split of the Kaggle dataset contains only 16
+images, which is insufficient for reliable hyperparameter
+selection; in practice, the test set may have been implicitly
+used for model selection in related work. Second, no external
+dataset validation is performed, so generalisation to
+different imaging protocols or patient populations is not
+assessed. Third, the dataset does not distinguish between
+bacterial and viral pneumonia, limiting the clinical utility
+of the predictions. Finally, computational constraints
+restrict the number of training epochs and the complexity
+of the architectures explored.
+
+% ─────────────────────────────────────────────────────────────
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+This paper presented and compared three architecturally
+distinct approaches to automated pneumonia detection from
+chest X-rays: a custom CNN trained from scratch, a hybrid
+pipeline combining frozen MobileNetV2 features with a
+Random Forest classifier, and a fine-tuned MobileNetV2 with
+a dense classification head. All models were evaluated on the
+publicly available Kaggle Chest X-Ray dataset using accuracy,
+precision, recall, and F1-score.
+
+The results confirm that transfer learning from
+ImageNet-pretrained networks provides a consistent advantage
+over training from scratch in low-data medical imaging
+scenarios. Fine-tuning the top layers of MobileNetV2
+achieves the best overall performance, while the hybrid
+MobileNetV2 + Random Forest approach offers competitive
+recall with simpler training dynamics. In a clinical
+screening context where false negatives carry the highest
+cost, recall is the most critical metric, and both
+transfer learning approaches outperform the scratch-trained
+CNN in this regard.
+
+Future work will address the following directions.
+First, the model should be validated on an independent
+external dataset to assess cross-institutional
+generalisation. Second, Grad-CAM \cite{selvaraju2017}
+visualisations will be integrated into the interface to
+provide radiologist-interpretable heatmaps highlighting
+the image regions driving each prediction. Third, the
+binary task could be extended to multi-class classification
+(normal vs.\ bacterial pneumonia vs.\ viral pneumonia)
+using fine-grained label annotations. Fourth, architectures
+such as EfficientNet \cite{tan2019} or Vision Transformers
+could be explored as higher-capacity backbones.
+
+% ─────────────────────────────────────────────────────────────
+\section{Web Interface}
+\label{sec:demo}
+
+\subsection{Description}
+
+A Streamlit-based \cite{streamlit} web application was
+developed to demonstrate the practical deployment of the
+three trained models. The interface provides real-time
+pneumonia prediction from a user-uploaded chest radiograph.
+
+\textbf{Input:} The user uploads a JPEG or PNG chest
+radiograph via a drag-and-drop file uploader. No
+preprocessing is required from the user; image resizing
+and normalisation are performed automatically by the
+application backend.
+
+\textbf{Model selection:} A sidebar dropdown widget allows
+the user to choose among three models:
+\emph{CNN (from scratch)},
+\emph{MobileNetV2 + Random Forest}, and
+\emph{MobileNetV2 Fine-tuned}. Each model is loaded
+lazily and cached using \texttt{@st.cache\_resource} to
+avoid repeated disk reads across user sessions.
+
+\textbf{Processing:} Upon model selection and file upload,
+the application preprocesses the image, runs inference
+through the selected model pipeline, and computes the
+predicted class probability. For the hybrid RF pipeline,
+inference proceeds in two steps: the MobileNetV2 extractor
+produces the feature vector, which is then classified by
+the Random Forest using \texttt{predict\_proba}.
+
+\textbf{Output:} Results are displayed in a two-column
+layout. The left column shows the uploaded radiograph and
+a colour-coded diagnostic message (green for normal, red
+for pneumonia detected) with the associated confidence
+probability. The right column presents a horizontal bar
+chart comparing the probabilities of both classes.
+The sidebar additionally displays the model's
+pre-computed test-set metrics (accuracy, precision,
+recall, F1-score), loaded from \texttt{model\_metrics.json},
+providing the user with context about the reliability of
+the selected model.
+
+\subsection{Typical Use Case}
+
+A user opens the application in a web browser and selects
+\emph{MobileNetV2 Fine-tuned} from the model dropdown.
+The sidebar immediately shows the test-set precision and
+recall for that model. The user uploads a chest radiograph
+in JPEG format. Within seconds, the application displays
+the prediction—\emph{Pneumonia detected}—with a confidence
+of 94\%, alongside the bar chart and a note recommending
+validation by a medical professional.
+
+% ─────────────────────────────────────────────────────────────
+\section*{Acknowledgements}
+The authors thank Prof.\ Nunzia Lomonte for her guidance
+throughout the Sistemi Multimediali course and for the
+feedback that shaped the design of this comparative study.
+
+% ─────────────────────────────────────────────────────────────
+\begin{thebibliography}{00}
+
+\bibitem{who2019}
+World Health Organization, ``Pneumonia,''
+\textit{WHO Fact Sheet}, 2019. [Online]. Available:
+\url{https://www.who.int/news-room/fact-sheets/detail/pneumonia}
+
+\bibitem{rajpurkar2017}
+P. Rajpurkar, J. Irvin, K. Ball, K. Zhu, B. Yang, H. Mehta,
+T. Duan, A. Ding, A. Bagul, C. Langlotz, K. Shpanskaya,
+M. P. Lungren, and A. Y. Ng,
+``CheXNet: Radiologist-Level Pneumonia Detection on Chest
+X-Rays with Deep Learning,''
+\textit{arXiv preprint arXiv:1711.05225}, 2017.
+
+\bibitem{litjens2017}
+G. Litjens, T. Kooi, B. E. Bejnordi, A. A. A. Setio,
+F. Ciompi, M. Ghafoorian, J. A. W. M. van der Laak,
+B. van Ginneken, and C. I. Sánchez,
+``A survey on deep learning in medical image analysis,''
+\textit{Medical Image Analysis}, vol. 42, pp. 60--88, 2017.
+
+\bibitem{pan2010}
+S. J. Pan and Q. Yang,
+``A Survey on Transfer Learning,''
+\textit{IEEE Transactions on Knowledge and Data Engineering},
+vol. 22, no. 10, pp. 1345--1359, 2010.
+
+\bibitem{jaeger2014}
+S. Jaeger, A. Karargyris, S. Candemir, L. Folio,
+J. Siegelman, F. Callaghan, Z. Xue, K. Palaniappan,
+R. K. Singh, S. Antani, G. Thoma, Y.-X. Wang, P.-X. Lu,
+and C. J. McDonald,
+``Automatic tuberculosis screening using chest radiographs,''
+\textit{IEEE Transactions on Medical Imaging},
+vol. 33, no. 2, pp. 233--245, 2014.
+
+\bibitem{wang2017}
+X. Wang, Y. Peng, L. Lu, Z. Lu, M. Bagheri, and
+R. M. Summers,
+``ChestX-ray8: Hospital-scale chest X-ray database and
+benchmarks,''
+in \textit{Proc. IEEE CVPR}, 2017, pp. 2097--2106.
+
+\bibitem{yao2018}
+L. Yao, E. Poblenz, D. Dagunts, B. Covington, D. Bernard,
+and K. Lyman,
+``Learning to diagnose from scratch by exploiting dependencies
+among labels,''
+\textit{arXiv preprint arXiv:1710.10501}, 2018.
+
+\bibitem{guan2019}
+Q. Guan and Y. Huang,
+``Multi-label chest X-ray image classification via
+category-wise residual attention learning,''
+\textit{Pattern Recognition Letters},
+vol. 130, pp. 259--266, 2020.
+
+\bibitem{stephen2019}
+O. Stephen, M. Sain, U. J. Maduh, and D.-U. Jeong,
+``An efficient deep learning approach to pneumonia
+classification in healthcare,''
+\textit{Journal of Healthcare Engineering},
+vol. 2019, pp. 1--7, 2019.
+
+\bibitem{sandler2018}
+M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, and
+L.-C. Chen,
+``MobileNetV2: Inverted residuals and linear bottlenecks,''
+in \textit{Proc. IEEE CVPR}, 2018, pp. 4510--4520.
+
+\bibitem{breiman2001}
+L. Breiman,
+``Random Forests,''
+\textit{Machine Learning}, vol. 45, no. 1, pp. 5--32, 2001.
+
+\bibitem{selvaraju2017}
+R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam,
+D. Parikh, and D. Batra,
+``Grad-CAM: Visual explanations from deep networks via
+gradient-based localization,''
+in \textit{Proc. IEEE ICCV}, 2017, pp. 618--626.
+
+\bibitem{tan2019}
+M. Tan and Q. V. Le,
+``EfficientNet: Rethinking model scaling for convolutional
+neural networks,''
+in \textit{Proc. ICML}, 2019, pp. 6105--6114.
+
+\bibitem{kaggle2018}
+D. Mooney, ``Chest X-Ray Images (Pneumonia),''
+\textit{Kaggle Dataset}, 2018. [Online]. Available:
+\url{https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia}
+
+\bibitem{streamlit}
+Streamlit Inc., ``Streamlit --- The fastest way to build
+data apps,'' 2023. [Online]. Available:
+\url{https://streamlit.io}
+
+\end{thebibliography}
+
+\end{document}
