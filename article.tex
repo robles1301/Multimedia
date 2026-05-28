@@ -21,19 +21,18 @@ for Pneumonia Detection in Chest X-Rays}
 
 \author{
   \IEEEauthorblockN{Enrique Robles}
-  \IEEEauthorblockA{\textit{Grado en Ingeniería Informática}\\
-  \textit{Universidad Rey Juan Carlos}\\
-  Madrid, Spain}
+  \IEEEauthorblockA{\textit{SISTEMI MULTIMEDIALI}}\\
+  \textit{UNIVERSITA’ DEGLI STUDI DI BARI
+  ALDO MORO}\\
   \and
   \IEEEauthorblockN{Juan Noblejas}
-  \IEEEauthorblockA{\textit{Grado en Ingeniería Informática}\\
-  \textit{Universidad Rey Juan Carlos}\\
-  Madrid, Spain}
+  \IEEEauthorblockA{\textit{SISTEMI MULTIMEDIALI}}\\
+  \textit{UNIVERSITA’ DEGLI STUDI DI BARI
+  	ALDO MORO}\\
   \and
   \IEEEauthorblockN{Alex Rodriguez}
-  \IEEEauthorblockA{\textit{Grado en Ingeniería Informática}\\
-  \textit{Universidad Rey Juan Carlos}\\
-  Madrid, Spain}
+  \IEEEauthorblockA{\textit{SISTEMI MULTIMEDIALI}}\\
+  \textit{UNIVERSITA’ DEGLI STUDI DI BARI ALDO MORO}\\
 }
 
 \maketitle
@@ -312,12 +311,11 @@ recall are computed for the positive class (pneumonia).
 \textbf{Model} & \textbf{Acc.} & \textbf{Prec.} &
 \textbf{Recall} & \textbf{F1} \\
 \midrule
-CNN (from scratch)         & -- & -- & -- & -- \\
-MobileNetV2 + RF           & -- & -- & -- & -- \\
-MobileNetV2 Fine-tuned     & -- & -- & -- & -- \\
+CNN (from scratch)         & \textbf{82.37\%} & 79.41\% & 96.92\% & \textbf{87.30\%} \\
+MobileNetV2 + RF           & 79.33\% & 76.05\% & \textbf{97.69\%} & 85.52\% \\
+MobileNetV2 Fine-tuned     & 67.15\% & 65.55\% & 100.00\% & 79.19\% \\
 \bottomrule
-\multicolumn{5}{l}{\small Note: fill in values after running
-\texttt{train\_and\_test\_model.py}.}
+\multicolumn{5}{l}{\small Precision and recall reported for the positive (pneumonia) class.}
 \end{tabular}
 \end{table}
 
@@ -344,22 +342,34 @@ meaningful image descriptors that the Random Forest can
 exploit effectively. The \texttt{class\_weight='balanced'}
 parameter is particularly important given the dataset
 imbalance, as it penalises misclassification of the minority
-class (normal) more heavily, tending to improve recall for
-the majority class (pneumonia). One limitation of this
+class (normal) more heavily, improving recall for the
+pneumonia class. Accordingly, this model achieves the
+second-highest recall (97.69\%) while maintaining a
+reasonable F1-score of 85.52\%. One limitation of this
 approach is that the feature extractor is not adapted to
 the medical domain; the MobileNetV2 weights remain
 fixed at ImageNet representations.
 
-The \textbf{fine-tuned MobileNetV2} addresses this
-limitation by adapting the top convolutional layers to
-chest radiograph-specific features. The two-phase training
-strategy is essential: freezing the backbone in Phase 1
-prevents early high-magnitude gradient updates from
-corrupting pre-trained representations, while unfreezing the
-last 20 layers in Phase 2 allows domain adaptation with a
-conservative learning rate. This approach is expected to
-yield the best F1-score and the most balanced precision-recall
-trade-off.
+The \textbf{fine-tuned MobileNetV2} achieves perfect recall
+(100.00\%), meaning it flags every true pneumonia case;
+however, this comes at the cost of a substantially higher
+false-positive rate, yielding the lowest precision (65.55\%)
+and the lowest overall accuracy (67.15\%) of the three
+models. The two-phase training strategy—freezing the
+backbone in Phase 1 and unfreezing the last 20 layers in
+Phase 2 with a conservative learning rate ($10^{-5}$)—successfully
+prevents catastrophic forgetting while enabling domain
+adaptation, but the resulting model exhibits a strong
+bias towards the pneumonia class. In a clinical screening
+context where the cost of a false negative exceeds that of a
+false positive, this high-recall behaviour may be clinically
+advantageous despite the lower accuracy.
+
+Overall, the \textbf{custom CNN} achieves the best balance
+among all metrics, obtaining the highest accuracy (82.37\%)
+and the highest F1-score (87.30\%), demonstrating that a
+relatively simple architecture trained from scratch can be
+competitive when recall is not the sole criterion.
 
 \subsection{Limitations}
 
@@ -389,17 +399,21 @@ a dense classification head. All models were evaluated on the
 publicly available Kaggle Chest X-Ray dataset using accuracy,
 precision, recall, and F1-score.
 
-The results confirm that transfer learning from
-ImageNet-pretrained networks provides a consistent advantage
-over training from scratch in low-data medical imaging
-scenarios. Fine-tuning the top layers of MobileNetV2
-achieves the best overall performance, while the hybrid
-MobileNetV2 + Random Forest approach offers competitive
-recall with simpler training dynamics. In a clinical
-screening context where false negatives carry the highest
-cost, recall is the most critical metric, and both
-transfer learning approaches outperform the scratch-trained
-CNN in this regard.
+The results reveal a clear precision-recall trade-off across
+the three approaches. The custom CNN achieves the highest
+accuracy (82.37\%) and F1-score (87.30\%), establishing a
+strong baseline despite receiving no pre-trained knowledge.
+The MobileNetV2 + Random Forest hybrid improves recall to
+97.69\% by leveraging rich ImageNet representations, at the
+cost of a modest reduction in precision and accuracy.
+The fine-tuned MobileNetV2 attains perfect recall (100.00\%),
+ensuring no true pneumonia case is missed, but its precision
+drops to 65.55\% and its accuracy to 67.15\%, reflecting a
+pronounced bias towards the positive class induced by the
+two-phase fine-tuning procedure. In a clinical screening
+context where false negatives carry the highest cost, the
+high-recall behaviour of the transfer learning models is
+clinically desirable, even at the expense of overall accuracy.
 
 Future work will address the following directions.
 First, the model should be validated on an independent
@@ -533,7 +547,7 @@ Q. Guan and Y. Huang,
 ``Multi-label chest X-ray image classification via
 category-wise residual attention learning,''
 \textit{Pattern Recognition Letters},
-vol. 130, pp. 259--266, 2020.
+vol. 130, pp. 259--266, 2019.
 
 \bibitem{stephen2019}
 O. Stephen, M. Sain, U. J. Maduh, and D.-U. Jeong,
@@ -567,7 +581,7 @@ neural networks,''
 in \textit{Proc. ICML}, 2019, pp. 6105--6114.
 
 \bibitem{kaggle2018}
-D. Mooney, ``Chest X-Ray Images (Pneumonia),''
+P. Mooney, ``Chest X-Ray Images (Pneumonia),''
 \textit{Kaggle Dataset}, 2018. [Online]. Available:
 \url{https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia}
 
